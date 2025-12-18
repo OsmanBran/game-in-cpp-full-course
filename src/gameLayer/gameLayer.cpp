@@ -40,6 +40,8 @@ struct GameplayData
 	float fireRate = 10.0f;
 
 	float timeSinceLastShot = 0.f;  // seconds accumulator
+
+	int guns = 1;
 };
 
 
@@ -67,6 +69,30 @@ Sound shootSound;
 bool intersectBullet(glm::vec2 bulletPos, glm::vec2 shipPos, float shipSize)
 {
 	return glm::distance(bulletPos, shipPos) <= shipSize;
+}
+
+void shootOneBullet(GameplayData& data, glm::vec2 mouseDirection) {
+	Bullet b;
+	b.position = data.playerPos;
+	b.fireDirection = mouseDirection;
+
+	data.bullets.push_back(b);
+}
+
+void shootTwoBullets(GameplayData& data, glm::vec2 mouseDirection) {
+	Bullet b;
+	b.position = data.playerPos;
+	b.position.x -= 70;
+	b.fireDirection = mouseDirection;
+
+	data.bullets.push_back(b);
+
+	Bullet b2;
+	b2.position = data.playerPos;
+	b2.position.x += 70;
+	b2.fireDirection = mouseDirection;
+
+	data.bullets.push_back(b2);
 }
 
 void restartGame()
@@ -253,12 +279,13 @@ bool gameLogic(float deltaTime)
 		if (data.timeSinceLastShot >= interval)
 		{
 			data.timeSinceLastShot = 0.f;
-
-			Bullet b;
-			b.position = data.playerPos;
-			b.fireDirection = mouseDirection;
-
-			data.bullets.push_back(b);
+			
+			if (data.guns == 2) {
+				shootTwoBullets(data, mouseDirection);
+			}
+			else {
+				shootOneBullet(data, mouseDirection);
+			}
 
 			PlaySound(shootSound);
 		}
