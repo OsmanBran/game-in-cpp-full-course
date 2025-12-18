@@ -4,10 +4,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include "platformInput.h"
-//#include "imgui.h"
+#include "imgui.h"
 #include <iostream>
 #include <sstream>
-//#include "imfilebrowser.h"
+#include <algorithm>
+#include "imfilebrowser.h"
 #include <gl2d/gl2d.h>
 #include <platformTools.h>
 #include <tiledRenderer.h>
@@ -30,6 +31,15 @@ struct GameplayData
 	float health = 1.f;
 
 	float spawnEnemyTimerSecconds = 3;
+
+	int level = 1;
+
+	static constexpr int DEFAULT_ENEMIES_REMAINING = 10;
+	int enemiesRemaining = DEFAULT_ENEMIES_REMAINING;
+
+	float fireRate = 10.0f;
+
+	float timeSinceLastShot = 0.f;  // seconds accumulator
 };
 
 
@@ -235,19 +245,23 @@ bool gameLogic(float deltaTime)
 #pragma endregion
 
 #pragma region handle bulets
+	data.timeSinceLastShot += deltaTime;
 
-
-	if (platform::isLMousePressed())
+	if (platform::isLMouseHeld())
 	{
-		Bullet b;
+		const float interval = 1.0f / max(1.0f, data.fireRate); // guard against zero
+		if (data.timeSinceLastShot >= interval)
+		{
+			data.timeSinceLastShot = 0.f;
 
-		b.position = data.playerPos;
-		b.fireDirection = mouseDirection;
+			Bullet b;
+			b.position = data.playerPos;
+			b.fireDirection = mouseDirection;
 
-		data.bullets.push_back(b);
+			data.bullets.push_back(b);
 
-		PlaySound(shootSound);
-
+			PlaySound(shootSound);
+		}
 	}
 
 
@@ -275,6 +289,11 @@ bool gameLogic(float deltaTime)
 					{
 						//kill enemy
 						data.enemies.erase(data.enemies.begin() + e);
+						data.enemiesRemaining--;
+						if (data.enemiesRemaining == 0) {
+							data.level++;
+							data.enemiesRemaining = GameplayData::DEFAULT_ENEMIES_REMAINING;
+						}
 					}
 
 					data.bullets.erase(data.bullets.begin() + i);
@@ -429,26 +448,30 @@ bool gameLogic(float deltaTime)
 	renderer.flush();
 	
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 
-	//ImGui::Begin("debug");
-	//
-	//ImGui::Text("Bullets count: %d", (int)data.bullets.size());
-	//ImGui::Text("Enemies count: %d", (int)data.enemies.size());
-	//
-	//if (ImGui::Button("Spawn enemy"))
-	//{
-	//	spawnEnemy();
-	//}
-	//
-	//if (ImGui::Button("Reset game"))
-	//{
-	//	restartGame();
-	//}
-	//
-	//ImGui::SliderFloat("Player Health", &data.health, 0, 1);
-	//
-	//ImGui::End();
+	ImGui::Begin("debug");
+
+	ImGui::Text("Bullets count: %d", (int)data.bullets.size());
+	ImGui::Text("Enemies count: %d", (int)data.enemies.size());
+	ImGui::Text("Level: %d", (int)data.level);
+	ImGui::Text("Enemies Remaining: %d", (int)data.enemiesRemaining);
+
+	if (ImGui::Button("Spawn enemy"))
+	{
+		spawnEnemy();
+	}
+	
+	if (ImGui::Button("Reset game"))
+	{
+		restartGame();
+	}
+	
+	ImGui::SliderFloat("Fire Rate", &data.fireRate, 0, 100);
+
+	ImGui::SliderFloat("Player Health", &data.health, 0, 1);
+	
+	ImGui::End();
 
 
 	return true;

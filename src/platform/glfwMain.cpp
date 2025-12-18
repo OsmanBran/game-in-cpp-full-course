@@ -13,7 +13,7 @@
 #include <fstream>
 #include <chrono>
 
-#define REMOVE_IMGUI 1
+#define REMOVE_IMGUI 0
 
 #if REMOVE_IMGUI == 0
 	#include "imgui.h"
