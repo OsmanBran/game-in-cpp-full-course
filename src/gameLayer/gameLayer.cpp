@@ -42,6 +42,8 @@ struct GameplayData
 	float timeSinceLastShot = 0.f;  // seconds accumulator
 
 	int guns = 1;
+
+	float damage = 0.1;
 };
 
 
@@ -310,7 +312,7 @@ bool gameLogic(float deltaTime)
 				if (intersectBullet(data.bullets[i].position, data.enemies[e].position,
 					enemyShipSize))
 				{
-					data.enemies[e].life -= 0.1;
+					data.enemies[e].life -= data.damage;
 
 					if (data.enemies[e].life <= 0)
 					{
@@ -497,6 +499,8 @@ bool gameLogic(float deltaTime)
 	ImGui::SliderFloat("Fire Rate", &data.fireRate, 0, 100);
 
 	ImGui::SliderFloat("Player Health", &data.health, 0, 1);
+
+	ImGui::SliderFloat("Bullet Damage", &data.damage, 0, 1);
 	
 	ImGui::End();
 
