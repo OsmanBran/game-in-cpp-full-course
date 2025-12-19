@@ -34,7 +34,7 @@ struct GameplayData
 
 	int level = 1;
 
-	static constexpr int DEFAULT_ENEMIES_REMAINING = 10;
+	static constexpr int DEFAULT_ENEMIES_REMAINING = 5;
 	int enemiesRemaining = DEFAULT_ENEMIES_REMAINING;
 
 	float fireRate = 5.0f;
@@ -165,7 +165,12 @@ bool initGame()
 
 constexpr float shipSize = 250.f;
 
-void spawnEnemy() 
+void increaseLevel() {
+	data.level++;
+	data.enemiesRemaining = GameplayData::DEFAULT_ENEMIES_REMAINING + data.level;
+}
+
+void spawnEnemy()
 {
 	glm::uvec2 shipTypes[] = {{0,0}, {0,1}, {2,0}, {3, 1}};
 
@@ -318,8 +323,7 @@ void liveGameLoop(float deltaTime, int w, int h) {
 						data.enemies.erase(data.enemies.begin() + e);
 						data.enemiesRemaining--;
 						if (data.enemiesRemaining == 0) {
-							data.level++;
-							data.enemiesRemaining = GameplayData::DEFAULT_ENEMIES_REMAINING;
+							increaseLevel();
 							isInGame = 0;
 						}
 					}
