@@ -4,10 +4,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include "platformInput.h"
-//#include "imgui.h"
+#include "imgui.h"
 #include <iostream>
 #include <sstream>
-//#include "imfilebrowser.h"
+#include <algorithm>
+#include "imfilebrowser.h"
 #include <gl2d/gl2d.h>
 #include <platformTools.h>
 #include <tiledRenderer.h>
@@ -30,6 +31,21 @@ struct GameplayData
 	float health = 1.f;
 
 	float spawnEnemyTimerSecconds = 3;
+
+	int level = 1;
+
+	static constexpr int DEFAULT_ENEMIES_REMAINING = 5;
+	int enemiesRemaining = DEFAULT_ENEMIES_REMAINING;
+
+	float fireRate = 5.0f;
+
+	float timeSinceLastShot = 0.f;  // seconds accumulator
+
+	int guns = 1;
+
+	float damage = 0.1;
+
+	int score = 0;
 };
 
 
@@ -54,9 +70,39 @@ gl2d::Texture health;
 
 Sound shootSound;
 
+glui::RendererUi uiRenderer;
+gl2d::Font uiFont;
+
+bool isInGame = 1;
+bool isGameOver = 0;
+
 bool intersectBullet(glm::vec2 bulletPos, glm::vec2 shipPos, float shipSize)
 {
 	return glm::distance(bulletPos, shipPos) <= shipSize;
+}
+
+void shootOneBullet(GameplayData& data, glm::vec2 mouseDirection) {
+	Bullet b;
+	b.position = data.playerPos;
+	b.fireDirection = mouseDirection;
+
+	data.bullets.push_back(b);
+}
+
+void shootTwoBullets(GameplayData& data, glm::vec2 mouseDirection) {
+	Bullet b;
+	b.position = data.playerPos;
+	b.position.x -= 70;
+	b.fireDirection = mouseDirection;
+
+	data.bullets.push_back(b);
+
+	Bullet b2;
+	b2.position = data.playerPos;
+	b2.position.x += 70;
+	b2.fireDirection = mouseDirection;
+
+	data.bullets.push_back(b2);
 }
 
 void restartGame()
@@ -64,6 +110,8 @@ void restartGame()
 	data = {};
 	renderer.currentCamera.follow(data.playerPos
 		, 550, 0, 0, renderer.windowW, renderer.windowH);
+	isGameOver = 0;
+	isInGame = 1;
 }
 
 bool initGame()
@@ -79,7 +127,7 @@ bool initGame()
 	renderer.create();
 
 	spaceShipsTexture.loadFromFileWithPixelPadding
-	(RESOURCES_PATH "spaceShip/stitchedFiles/spaceships.png", 128, true);
+	(RESOURCES_PATH "spaceShip/stitchedFiles/spaceships2.png", 128, true);
 	spaceShipsAtlas = gl2d::TextureAtlasPadding(5, 2, spaceShipsTexture.GetSize().x, spaceShipsTexture.GetSize().y);
 
 	bulletsTexture.loadFromFileWithPixelPadding
@@ -107,6 +155,8 @@ bool initGame()
 	tiledRenderer[2].paralaxStrength = 0.4;
 	tiledRenderer[3].paralaxStrength = 0.7;
 
+	uiFont.createFromFile(RESOURCES_PATH "CommodorePixeled.ttf");
+
 	restartGame();
 
 	return true;
@@ -115,7 +165,12 @@ bool initGame()
 
 constexpr float shipSize = 250.f;
 
-void spawnEnemy() 
+void increaseLevel() {
+	data.level++;
+	data.enemiesRemaining = GameplayData::DEFAULT_ENEMIES_REMAINING + data.level;
+}
+
+void spawnEnemy()
 {
 	glm::uvec2 shipTypes[] = {{0,0}, {0,1}, {2,0}, {3, 1}};
 
@@ -137,22 +192,7 @@ void spawnEnemy()
 	data.enemies.push_back(e);
 }
 
-bool gameLogic(float deltaTime)
-{
-
-#pragma region init stuff
-	int w = 0; int h = 0;
-	w = platform::getFrameBufferSizeX(); //window w
-	h = platform::getFrameBufferSizeY(); //window h
-	
-	glViewport(0, 0, w, h);
-	glClear(GL_COLOR_BUFFER_BIT); //clear screen
-
-	renderer.updateWindowMetrics(w, h);
-#pragma endregion
-
-
-
+void liveGameLoop(float deltaTime, int w, int h) {
 #pragma region movement
 
 	glm::vec2 move = {};
@@ -223,7 +263,7 @@ bool gameLogic(float deltaTime)
 
 	if (glm::length(mouseDirection) == 0.f)
 	{
-		mouseDirection = {1,0};
+		mouseDirection = { 1,0 };
 	}
 	else
 	{
@@ -235,25 +275,30 @@ bool gameLogic(float deltaTime)
 #pragma endregion
 
 #pragma region handle bulets
+	data.timeSinceLastShot += deltaTime;
 
-
-	if (platform::isLMousePressed())
+	if (platform::isLMouseHeld())
 	{
-		Bullet b;
+		const float interval = 1.0f / max(1.0f, data.fireRate); // guard against zero
+		if (data.timeSinceLastShot >= interval)
+		{
+			data.timeSinceLastShot = 0.f;
 
-		b.position = data.playerPos;
-		b.fireDirection = mouseDirection;
+			if (data.guns == 2) {
+				shootTwoBullets(data, mouseDirection);
+			}
+			else {
+				shootOneBullet(data, mouseDirection);
+			}
 
-		data.bullets.push_back(b);
-
-		PlaySound(shootSound);
-
+			PlaySound(shootSound);
+		}
 	}
 
 
 	for (int i = 0; i < data.bullets.size(); i++)
 	{
-		
+
 		if (glm::distance(data.bullets[i].position, data.playerPos) > 5'000)
 		{
 			data.bullets.erase(data.bullets.begin() + i);
@@ -269,12 +314,18 @@ bool gameLogic(float deltaTime)
 				if (intersectBullet(data.bullets[i].position, data.enemies[e].position,
 					enemyShipSize))
 				{
-					data.enemies[e].life -= 0.1;
+					data.enemies[e].life -= data.damage;
 
 					if (data.enemies[e].life <= 0)
 					{
 						//kill enemy
+						data.score++;
 						data.enemies.erase(data.enemies.begin() + e);
+						data.enemiesRemaining--;
+						if (data.enemiesRemaining == 0) {
+							increaseLevel();
+							isInGame = 0;
+						}
 					}
 
 					data.bullets.erase(data.bullets.begin() + i);
@@ -312,7 +363,7 @@ bool gameLogic(float deltaTime)
 	if (data.health <= 0)
 	{
 		//kill player
-		restartGame();
+		isGameOver = 1;
 	}
 	else
 	{
@@ -324,7 +375,7 @@ bool gameLogic(float deltaTime)
 
 #pragma region handle enemies
 
-	if (data.enemies.size() < 15) 
+	if (data.enemies.size() < 15)
 	{
 		data.spawnEnemyTimerSecconds -= deltaTime;
 
@@ -340,7 +391,7 @@ bool gameLogic(float deltaTime)
 			}
 
 		}
-	
+
 	}
 
 
@@ -374,7 +425,7 @@ bool gameLogic(float deltaTime)
 
 #pragma region render enemies
 
-	for (auto &e : data.enemies)
+	for (auto& e : data.enemies)
 	{
 		e.render(renderer, spaceShipsTexture, spaceShipsAtlas);
 	}
@@ -383,40 +434,40 @@ bool gameLogic(float deltaTime)
 
 #pragma region render ship
 
+	glm::vec4 spaceShipVector = data.level > 1 ? spaceShipsAtlas.get(4, 1) : spaceShipsAtlas.get(3, 0);
 	renderSpaceShip(renderer, data.playerPos, shipSize,
-		spaceShipsTexture, spaceShipsAtlas.get(3, 0), mouseDirection);
+		spaceShipsTexture, spaceShipVector, mouseDirection);
 
 #pragma endregion
 
 #pragma region render bullets
 
-	for (auto &b : data.bullets)
+	for (auto& b : data.bullets)
 	{
 		b.render(renderer, bulletsTexture, bulletsAtlas);
 	}
 
 #pragma endregion
 
-
 #pragma region ui
 
 	renderer.pushCamera();
 	{
 
-		glui::Frame f({0,0, w, h});
+		glui::Frame f({ 0,0, w, h });
 
 		glui::Box healthBox = glui::Box().xLeftPerc(0.65).yTopPerc(0.1).
-			xDimensionPercentage(0.3).yAspectRatio(1.f/8.f);
+			xDimensionPercentage(0.3).yAspectRatio(1.f / 8.f);
 
 		renderer.renderRectangle(healthBox, healthBar);
 
 		glm::vec4 newRect = healthBox();
 		newRect.z *= data.health;
 
-		glm::vec4 textCoords = {0,1,1,0};
+		glm::vec4 textCoords = { 0,1,1,0 };
 		textCoords.z *= data.health;
 
-		renderer.renderRectangle(newRect, health, Colors_White, {}, {}, 
+		renderer.renderRectangle(newRect, health, Colors_White, {}, {},
 			textCoords);
 
 	}
@@ -424,36 +475,34 @@ bool gameLogic(float deltaTime)
 
 #pragma endregion
 
+	ImGui::ShowDemoWindow();
 
+	ImGui::Begin("debug");
 
-	renderer.flush();
-	
+	ImGui::Text("Bullets count: %d", (int)data.bullets.size());
+	ImGui::Text("Enemies count: %d", (int)data.enemies.size());
+	ImGui::Text("Level: %d", (int)data.level);
+	ImGui::Text("Enemies Remaining: %d", (int)data.enemiesRemaining);
 
-	//ImGui::ShowDemoWindow();
+	if (ImGui::Button("Spawn enemy"))
+	{
+		spawnEnemy();
+	}
 
-	//ImGui::Begin("debug");
-	//
-	//ImGui::Text("Bullets count: %d", (int)data.bullets.size());
-	//ImGui::Text("Enemies count: %d", (int)data.enemies.size());
-	//
-	//if (ImGui::Button("Spawn enemy"))
-	//{
-	//	spawnEnemy();
-	//}
-	//
-	//if (ImGui::Button("Reset game"))
-	//{
-	//	restartGame();
-	//}
-	//
-	//ImGui::SliderFloat("Player Health", &data.health, 0, 1);
-	//
-	//ImGui::End();
+	if (ImGui::Button("Reset game"))
+	{
+		restartGame();
+	}
 
+	ImGui::SliderFloat("Fire Rate", &data.fireRate, 0, 100);
 
-	return true;
+	ImGui::SliderFloat("Player Health", &data.health, 0, 1);
+
+	ImGui::SliderFloat("Bullet Damage", &data.damage, 0, 1);
+
+	ImGui::End();
+
 #pragma endregion
-
 }
 
 //This function might not be be called if the program is forced closed
@@ -461,4 +510,77 @@ void closeGame()
 {
 
 
+}
+
+void displayUpgradeMenu(float deltaTime) {
+	uiRenderer.Begin(1);
+
+	uiRenderer.Text("Level " + std::to_string(data.level), Colors_White);
+	uiRenderer.Text("Choose an upgrade", Colors_White);
+
+	if (uiRenderer.Button("Increase Damage", Colors_White)) {
+		isInGame = 1;
+		data.damage += 0.05f;
+	}
+
+	if (uiRenderer.Button("Increase Fire Rate", Colors_White)) {
+		isInGame = 1;
+		data.fireRate += 2.0f;
+	}
+
+	if (uiRenderer.Button("Increase Health", Colors_White)) {
+		isInGame = 1;
+		data.health += 0.2f;
+	}
+
+	uiRenderer.End();
+
+	uiRenderer.renderFrame(renderer, uiFont, platform::getRelMousePosition(), platform::isLMousePressed(), platform::isLMouseHeld(), 
+		platform::isLMouseReleased(), platform::isButtonReleased(platform::Button::Escape), platform::getTypedInput(), deltaTime);
+}
+
+void displayGameOverMenu(float deltaTime) {
+	uiRenderer.Begin(2);
+
+	uiRenderer.Text("Game Over", Colors_White);
+	uiRenderer.Text("Score: " + std::to_string(data.score), Colors_White);
+
+	if (uiRenderer.Button("Play Again", Colors_White)) {
+		restartGame();
+	}
+
+	uiRenderer.End();
+
+	uiRenderer.renderFrame(renderer, uiFont, platform::getRelMousePosition(), platform::isLMousePressed(), platform::isLMouseHeld(),
+		platform::isLMouseReleased(), platform::isButtonReleased(platform::Button::Escape), platform::getTypedInput(), deltaTime);
+}
+
+bool gameLogic(float deltaTime)
+{
+
+#pragma region init stuff
+	int w = 0; int h = 0;
+	w = platform::getFrameBufferSizeX(); //window w
+	h = platform::getFrameBufferSizeY(); //window h
+
+	glViewport(0, 0, w, h);
+	glClear(GL_COLOR_BUFFER_BIT); //clear screen
+
+	renderer.updateWindowMetrics(w, h);
+#pragma endregion
+
+#pragma region game loop
+	if (isGameOver) {
+		displayGameOverMenu(deltaTime);
+	}
+	else if (isInGame) {
+		liveGameLoop(deltaTime, w, h);
+	}
+	else {
+		displayUpgradeMenu(deltaTime);
+	}
+	renderer.flush();
+
+#pragma endregion
+	return true;
 }

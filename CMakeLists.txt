@@ -1,9 +1,8 @@
 #https://github.com/meemknight/cmakeSetup
 #Version 1.0.0
-
 cmake_minimum_required(VERSION 3.16)
 
-add_compile_options(-Wno-incompatible-pointer-types)
+#add_compile_options(-Wno-incompatible-pointer-types)
 
 #set this to true to ship the game!
 #! ! ! ! ! ! !

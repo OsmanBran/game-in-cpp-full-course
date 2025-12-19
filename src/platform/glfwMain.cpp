@@ -3,6 +3,7 @@
 #include <stb_image/stb_image.h>
 #include <stb_truetype/stb_truetype.h>
 #include "gl2d/gl2d.h"
+#include "glui/glui.h"
 #include <iostream>
 #include <ctime>
 #include "platformTools.h"
@@ -13,7 +14,7 @@
 #include <fstream>
 #include <chrono>
 
-#define REMOVE_IMGUI 1
+#define REMOVE_IMGUI 0
 
 #if REMOVE_IMGUI == 0
 	#include "imgui.h"
@@ -421,11 +422,11 @@ int main()
 
 	#pragma region game logic
 
-		if (!gameLogic(augmentedDeltaTime))
-		{
-			closeGame();
-			return 0;
-		}
+			if (!gameLogic(augmentedDeltaTime))
+			{
+				closeGame();
+				return 0;
+			}
 
 	#pragma endregion
 
