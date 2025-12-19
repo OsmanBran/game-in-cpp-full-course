@@ -37,7 +37,7 @@ struct GameplayData
 	static constexpr int DEFAULT_ENEMIES_REMAINING = 10;
 	int enemiesRemaining = DEFAULT_ENEMIES_REMAINING;
 
-	float fireRate = 10.0f;
+	float fireRate = 5.0f;
 
 	float timeSinceLastShot = 0.f;  // seconds accumulator
 
@@ -71,7 +71,7 @@ Sound shootSound;
 glui::RendererUi uiRenderer;
 gl2d::Font uiFont;
 
-bool isInGame = 0;
+bool isInGame = 1;
 
 bool intersectBullet(glm::vec2 bulletPos, glm::vec2 shipPos, float shipSize)
 {
@@ -314,6 +314,7 @@ void liveGameLoop(float deltaTime, int w, int h) {
 						if (data.enemiesRemaining == 0) {
 							data.level++;
 							data.enemiesRemaining = GameplayData::DEFAULT_ENEMIES_REMAINING;
+							isInGame = 0;
 						}
 					}
 
@@ -437,7 +438,6 @@ void liveGameLoop(float deltaTime, int w, int h) {
 
 #pragma endregion
 
-
 #pragma region ui
 
 	renderer.pushCamera();
@@ -501,23 +501,25 @@ void closeGame()
 
 }
 
-void displayMenu(float deltaTime) {
-#pragma region init stuff
-	int w = 0; int h = 0;
-	w = platform::getFrameBufferSizeX(); //window w
-	h = platform::getFrameBufferSizeY(); //window h
-
-	glViewport(0, 0, w, h);
-	glClear(GL_COLOR_BUFFER_BIT); //clear screen
-
-	renderer.updateWindowMetrics(w, h);
-#pragma endregion
-
+void displayUpgradeMenu(float deltaTime) {
 	uiRenderer.Begin(1);
 
-	if (uiRenderer.Button("Play", Colors_White)) {
+	uiRenderer.Text("Level " + std::to_string(data.level), Colors_White);
+	uiRenderer.Text("Choose an upgrade", Colors_White);
+
+	if (uiRenderer.Button("Increase Damage", Colors_White)) {
 		isInGame = 1;
-		restartGame();
+		data.damage += 0.05f;
+	}
+
+	if (uiRenderer.Button("Increase Fire Rate", Colors_White)) {
+		isInGame = 1;
+		data.fireRate += 2.0f;
+	}
+
+	if (uiRenderer.Button("Increase Health", Colors_White)) {
+		isInGame = 1;
+		data.health += 0.2f;
 	}
 
 	uiRenderer.End();
@@ -545,7 +547,7 @@ bool gameLogic(float deltaTime)
 		liveGameLoop(deltaTime, w, h);
 	}
 	else {
-		displayMenu(deltaTime);
+		displayUpgradeMenu(deltaTime);
 	}
 	renderer.flush();
 
