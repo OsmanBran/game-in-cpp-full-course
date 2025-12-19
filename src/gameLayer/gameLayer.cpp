@@ -44,6 +44,8 @@ struct GameplayData
 	int guns = 1;
 
 	float damage = 0.1;
+
+	int score = 0;
 };
 
 
@@ -72,6 +74,7 @@ glui::RendererUi uiRenderer;
 gl2d::Font uiFont;
 
 bool isInGame = 1;
+bool isGameOver = 0;
 
 bool intersectBullet(glm::vec2 bulletPos, glm::vec2 shipPos, float shipSize)
 {
@@ -107,6 +110,8 @@ void restartGame()
 	data = {};
 	renderer.currentCamera.follow(data.playerPos
 		, 550, 0, 0, renderer.windowW, renderer.windowH);
+	isGameOver = 0;
+	isInGame = 1;
 }
 
 bool initGame()
@@ -309,6 +314,7 @@ void liveGameLoop(float deltaTime, int w, int h) {
 					if (data.enemies[e].life <= 0)
 					{
 						//kill enemy
+						data.score++;
 						data.enemies.erase(data.enemies.begin() + e);
 						data.enemiesRemaining--;
 						if (data.enemiesRemaining == 0) {
@@ -353,7 +359,7 @@ void liveGameLoop(float deltaTime, int w, int h) {
 	if (data.health <= 0)
 	{
 		//kill player
-		restartGame();
+		isGameOver = 1;
 	}
 	else
 	{
@@ -528,6 +534,22 @@ void displayUpgradeMenu(float deltaTime) {
 		platform::isLMouseReleased(), platform::isButtonReleased(platform::Button::Escape), platform::getTypedInput(), deltaTime);
 }
 
+void displayGameOverMenu(float deltaTime) {
+	uiRenderer.Begin(2);
+
+	uiRenderer.Text("Game Over", Colors_White);
+	uiRenderer.Text("Score: " + std::to_string(data.score), Colors_White);
+
+	if (uiRenderer.Button("Play Again", Colors_White)) {
+		restartGame();
+	}
+
+	uiRenderer.End();
+
+	uiRenderer.renderFrame(renderer, uiFont, platform::getRelMousePosition(), platform::isLMousePressed(), platform::isLMouseHeld(),
+		platform::isLMouseReleased(), platform::isButtonReleased(platform::Button::Escape), platform::getTypedInput(), deltaTime);
+}
+
 bool gameLogic(float deltaTime)
 {
 
@@ -543,7 +565,10 @@ bool gameLogic(float deltaTime)
 #pragma endregion
 
 #pragma region game loop
-	if (isInGame) {
+	if (isGameOver) {
+		displayGameOverMenu(deltaTime);
+	}
+	else if (isInGame) {
 		liveGameLoop(deltaTime, w, h);
 	}
 	else {
