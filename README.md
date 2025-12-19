@@ -1,11 +1,19 @@
 # Game In C++ Full Course
   
-## This is the repo for my full game in C++ course.
+Forked this from a C++ game course while trying to learn C++ more.
 
-## [YouTube video](https://youtu.be/XOs2qynEmNE).
+Implemented a rogue-like game structure where you can choose upgrades on each level.
 
-![demo](https://github.com/meemknight/game-in-cpp-full-course/assets/36445656/bfa8bb4e-5c18-49c1-b078-81ba27561096)
+New features I added:
+- Multiple levels with increasing difficulty.
+- Upgrade system between levels.
+- Visual upgrades for the ship.
+- Scoring mechanism and menus.
 
-Also check out how to use my [CMake](https://github.com/meemknight/cmakeSetup) setup by watching [this video](https://youtu.be/K8f73k9HM8M)!
+Learnt stuff like:
+- how to use openGL to render graphics and menus.
+- Cmake libraries and set ups.
+- Game loop structure.
 
-Or check out [part 2](https://youtu.be/-PQxzNosRTo) where I quickly add a menu to the game!
+I'm going to pause this for now and start a new project because the greatest limitation is that this project does not use classes.
+It means adding code is pretty messy and harder to create appropriate separations.

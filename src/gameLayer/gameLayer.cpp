@@ -127,7 +127,7 @@ bool initGame()
 	renderer.create();
 
 	spaceShipsTexture.loadFromFileWithPixelPadding
-	(RESOURCES_PATH "spaceShip/stitchedFiles/spaceships.png", 128, true);
+	(RESOURCES_PATH "spaceShip/stitchedFiles/spaceships2.png", 128, true);
 	spaceShipsAtlas = gl2d::TextureAtlasPadding(5, 2, spaceShipsTexture.GetSize().x, spaceShipsTexture.GetSize().y);
 
 	bulletsTexture.loadFromFileWithPixelPadding
@@ -434,8 +434,9 @@ void liveGameLoop(float deltaTime, int w, int h) {
 
 #pragma region render ship
 
+	glm::vec4 spaceShipVector = data.level > 1 ? spaceShipsAtlas.get(4, 1) : spaceShipsAtlas.get(3, 0);
 	renderSpaceShip(renderer, data.playerPos, shipSize,
-		spaceShipsTexture, spaceShipsAtlas.get(3, 0), mouseDirection);
+		spaceShipsTexture, spaceShipVector, mouseDirection);
 
 #pragma endregion
 
