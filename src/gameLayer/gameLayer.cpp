@@ -68,6 +68,11 @@ gl2d::Texture health;
 
 Sound shootSound;
 
+glui::RendererUi uiRenderer;
+gl2d::Font uiFont;
+
+bool isInGame = 0;
+
 bool intersectBullet(glm::vec2 bulletPos, glm::vec2 shipPos, float shipSize)
 {
 	return glm::distance(bulletPos, shipPos) <= shipSize;
@@ -145,6 +150,8 @@ bool initGame()
 	tiledRenderer[2].paralaxStrength = 0.4;
 	tiledRenderer[3].paralaxStrength = 0.7;
 
+	uiFont.createFromFile(RESOURCES_PATH "CommodorePixeled.ttf");
+
 	restartGame();
 
 	return true;
@@ -175,22 +182,7 @@ void spawnEnemy()
 	data.enemies.push_back(e);
 }
 
-bool gameLogic(float deltaTime)
-{
-
-#pragma region init stuff
-	int w = 0; int h = 0;
-	w = platform::getFrameBufferSizeX(); //window w
-	h = platform::getFrameBufferSizeY(); //window h
-	
-	glViewport(0, 0, w, h);
-	glClear(GL_COLOR_BUFFER_BIT); //clear screen
-
-	renderer.updateWindowMetrics(w, h);
-#pragma endregion
-
-
-
+void liveGameLoop(float deltaTime, int w, int h) {
 #pragma region movement
 
 	glm::vec2 move = {};
@@ -261,7 +253,7 @@ bool gameLogic(float deltaTime)
 
 	if (glm::length(mouseDirection) == 0.f)
 	{
-		mouseDirection = {1,0};
+		mouseDirection = { 1,0 };
 	}
 	else
 	{
@@ -281,7 +273,7 @@ bool gameLogic(float deltaTime)
 		if (data.timeSinceLastShot >= interval)
 		{
 			data.timeSinceLastShot = 0.f;
-			
+
 			if (data.guns == 2) {
 				shootTwoBullets(data, mouseDirection);
 			}
@@ -296,7 +288,7 @@ bool gameLogic(float deltaTime)
 
 	for (int i = 0; i < data.bullets.size(); i++)
 	{
-		
+
 		if (glm::distance(data.bullets[i].position, data.playerPos) > 5'000)
 		{
 			data.bullets.erase(data.bullets.begin() + i);
@@ -372,7 +364,7 @@ bool gameLogic(float deltaTime)
 
 #pragma region handle enemies
 
-	if (data.enemies.size() < 15) 
+	if (data.enemies.size() < 15)
 	{
 		data.spawnEnemyTimerSecconds -= deltaTime;
 
@@ -388,7 +380,7 @@ bool gameLogic(float deltaTime)
 			}
 
 		}
-	
+
 	}
 
 
@@ -422,7 +414,7 @@ bool gameLogic(float deltaTime)
 
 #pragma region render enemies
 
-	for (auto &e : data.enemies)
+	for (auto& e : data.enemies)
 	{
 		e.render(renderer, spaceShipsTexture, spaceShipsAtlas);
 	}
@@ -438,7 +430,7 @@ bool gameLogic(float deltaTime)
 
 #pragma region render bullets
 
-	for (auto &b : data.bullets)
+	for (auto& b : data.bullets)
 	{
 		b.render(renderer, bulletsTexture, bulletsAtlas);
 	}
@@ -451,31 +443,26 @@ bool gameLogic(float deltaTime)
 	renderer.pushCamera();
 	{
 
-		glui::Frame f({0,0, w, h});
+		glui::Frame f({ 0,0, w, h });
 
 		glui::Box healthBox = glui::Box().xLeftPerc(0.65).yTopPerc(0.1).
-			xDimensionPercentage(0.3).yAspectRatio(1.f/8.f);
+			xDimensionPercentage(0.3).yAspectRatio(1.f / 8.f);
 
 		renderer.renderRectangle(healthBox, healthBar);
 
 		glm::vec4 newRect = healthBox();
 		newRect.z *= data.health;
 
-		glm::vec4 textCoords = {0,1,1,0};
+		glm::vec4 textCoords = { 0,1,1,0 };
 		textCoords.z *= data.health;
 
-		renderer.renderRectangle(newRect, health, Colors_White, {}, {}, 
+		renderer.renderRectangle(newRect, health, Colors_White, {}, {},
 			textCoords);
 
 	}
 	renderer.popCamera();
 
 #pragma endregion
-
-
-
-	renderer.flush();
-	
 
 	ImGui::ShowDemoWindow();
 
@@ -490,24 +477,21 @@ bool gameLogic(float deltaTime)
 	{
 		spawnEnemy();
 	}
-	
+
 	if (ImGui::Button("Reset game"))
 	{
 		restartGame();
 	}
-	
+
 	ImGui::SliderFloat("Fire Rate", &data.fireRate, 0, 100);
 
 	ImGui::SliderFloat("Player Health", &data.health, 0, 1);
 
 	ImGui::SliderFloat("Bullet Damage", &data.damage, 0, 1);
-	
+
 	ImGui::End();
 
-
-	return true;
 #pragma endregion
-
 }
 
 //This function might not be be called if the program is forced closed
@@ -515,4 +499,56 @@ void closeGame()
 {
 
 
+}
+
+void displayMenu(float deltaTime) {
+#pragma region init stuff
+	int w = 0; int h = 0;
+	w = platform::getFrameBufferSizeX(); //window w
+	h = platform::getFrameBufferSizeY(); //window h
+
+	glViewport(0, 0, w, h);
+	glClear(GL_COLOR_BUFFER_BIT); //clear screen
+
+	renderer.updateWindowMetrics(w, h);
+#pragma endregion
+
+	uiRenderer.Begin(1);
+
+	if (uiRenderer.Button("Play", Colors_White)) {
+		isInGame = 1;
+		restartGame();
+	}
+
+	uiRenderer.End();
+
+	uiRenderer.renderFrame(renderer, uiFont, platform::getRelMousePosition(), platform::isLMousePressed(), platform::isLMouseHeld(), 
+		platform::isLMouseReleased(), platform::isButtonReleased(platform::Button::Escape), platform::getTypedInput(), deltaTime);
+}
+
+bool gameLogic(float deltaTime)
+{
+
+#pragma region init stuff
+	int w = 0; int h = 0;
+	w = platform::getFrameBufferSizeX(); //window w
+	h = platform::getFrameBufferSizeY(); //window h
+
+	glViewport(0, 0, w, h);
+	glClear(GL_COLOR_BUFFER_BIT); //clear screen
+
+	renderer.updateWindowMetrics(w, h);
+#pragma endregion
+
+#pragma region game loop
+	if (isInGame) {
+		liveGameLoop(deltaTime, w, h);
+	}
+	else {
+		displayMenu(deltaTime);
+	}
+	renderer.flush();
+
+#pragma endregion
+	return true;
 }
